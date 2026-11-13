@@ -10,9 +10,9 @@ import com.example.domain.model.RiskLevel
 import com.example.domain.model.UrlCheckStatus
 import com.example.domain.model.UrlInspectionSummary
 import com.example.domain.security.SsrfUrlGuard
+import com.example.domain.security.UnsafeDnsResolutionException
 import com.example.domain.security.UrlSafetyCheckResult
 import java.net.URI
-import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.Dns
@@ -97,10 +97,10 @@ class SafeHttpRedirectTracer(
           }
         }
       } catch (e: Exception) {
-        val dnsBlock = e is UnknownHostException && (
-          e.message?.contains("SSRF_BLOCKED_IP") == true ||
-            e.message?.contains("BLOCKED_INTERNAL_HOST") == true
-        )
+        val dnsBlock =
+          generateSequence<Throwable>(e) { it.cause }
+            .filterIsInstance<UnsafeDnsResolutionException>()
+            .any { it.code == "SSRF_BLOCKED_IP" || it.code == "BLOCKED_INTERNAL_HOST" }
         return RedirectTraceOutcome(
           inspected = false,
           blockedBySsrf = dnsBlock,
