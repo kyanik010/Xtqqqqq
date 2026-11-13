@@ -1,6 +1,7 @@
 package com.example
 
 import com.example.domain.engines.RedirectTraceOutcome
+import com.example.domain.engines.SafeHttpRedirectTracer
 import com.example.domain.engines.UrlIntelligenceEngine
 import com.example.domain.engines.UrlRedirectTracer
 import com.example.domain.model.AnalysisConfig
@@ -10,6 +11,7 @@ import com.example.domain.security.DnsResolver
 import com.example.domain.security.SsrfUrlGuard
 import com.example.domain.security.UrlSafetyCheckResult
 import java.net.InetAddress
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,6 +67,27 @@ class UrlSecurityAndSsrfTest {
     val guard = SsrfUrlGuard(fakeDns(mapOf("example.org" to listOf("93.184.216.34"))))
     val res = guard.validateWithDns("https://example.org/guide")
     assertTrue(res is UrlSafetyCheckResult.Safe)
+  }
+
+  @Test
+  fun `blocks DNS rebinding at the actual OkHttp socket lookup`() {
+    val resolutions = AtomicInteger(0)
+    val resolver =
+      object : DnsResolver {
+        override fun resolveAll(host: String): List<InetAddress> {
+          val attempt = resolutions.incrementAndGet()
+          val address = if (attempt == 1) "93.184.216.34" else "10.0.0.8"
+          return listOf(InetAddress.getByName(address))
+        }
+      }
+    val guard = SsrfUrlGuard(resolver)
+    val tracer = SafeHttpRedirectTracer(ssrfGuard = guard)
+
+    val outcome = tracer.trace("http://rebind.example/")
+
+    assertTrue("The second DNS answer must be checked and blocked", outcome.blockedBySsrf)
+    assertTrue("A rebinding destination must never be marked inspected", !outcome.inspected)
+    assertTrue("Expected initial validation and connection-time DNS validation", resolutions.get() >= 2)
   }
 
   @Test
