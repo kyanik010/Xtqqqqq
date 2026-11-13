@@ -10,10 +10,12 @@ import com.example.domain.model.RiskLevel
 import com.example.domain.model.UrlCheckStatus
 import com.example.domain.model.UrlInspectionSummary
 import com.example.domain.security.SsrfUrlGuard
+import com.example.domain.security.UnsafeDnsResolutionException
 import com.example.domain.security.UrlSafetyCheckResult
 import java.net.URI
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -35,6 +37,12 @@ class SafeHttpRedirectTracer(
     OkHttpClient.Builder()
       .followRedirects(false)
       .followSslRedirects(false)
+      // Resolve and validate DNS at the socket-connection boundary, then return those exact
+      // addresses to OkHttp. This pins the connection to the checked IPs and blocks DNS rebinding.
+      .dns(object : Dns {
+        override fun lookup(hostname: String): List<java.net.InetAddress> =
+          ssrfGuard.resolveSafeAddresses(hostname)
+      })
       .connectTimeout(SsrfUrlGuard.CONNECT_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
       .readTimeout(SsrfUrlGuard.READ_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
       .build(),
@@ -92,12 +100,20 @@ class SafeHttpRedirectTracer(
           }
         }
       } catch (e: Exception) {
+        val dnsBlock =
+          generateSequence<Throwable>(e) { it.cause }
+            .filterIsInstance<UnsafeDnsResolutionException>()
+            .any { it.code == "SSRF_BLOCKED_IP" || it.code == "BLOCKED_INTERNAL_HOST" }
         return RedirectTraceOutcome(
           inspected = false,
-          blockedBySsrf = false,
+          blockedBySsrf = dnsBlock,
           finalUrl = null,
           redirectCount = hops,
-          errorNoteAr = "تعذر الوصول للرابط أثناء الفحص (${e.javaClass.simpleName}).",
+          errorNoteAr = if (dnsBlock) {
+            "حُظر الاتصال أثناء حل DNS لأن عنوان الوجهة أصبح داخلياً أو خاصاً (حماية من DNS Rebinding)."
+          } else {
+            "تعذر الوصول للرابط أثناء الفحص (${e.javaClass.simpleName})."
+          },
         )
       }
     }

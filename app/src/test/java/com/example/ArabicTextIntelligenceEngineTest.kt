@@ -21,6 +21,28 @@ class ArabicTextIntelligenceEngineTest {
   }
 
   @Test
+  fun `preserves morphologically distinct Arabic letters during normalization`() {
+    assertEquals("مدرسة", engine.normalize("مدرسة"))
+    assertEquals("مدرسه", engine.normalize("مدرسه"))
+    assertFalse(engine.normalize("مدرسة") == engine.normalize("مدرسه"))
+    assertEquals("مسؤول", engine.normalize("مسؤول"))
+    assertEquals("مسول", engine.normalize("مسول"))
+    assertFalse(engine.normalize("مسؤول") == engine.normalize("مسول"))
+    assertEquals("بيئة", engine.normalize("بيئة"))
+    assertEquals("بيه", engine.normalize("بيه"))
+    assertFalse(engine.normalize("بيئة") == engine.normalize("بيه"))
+  }
+
+  @Test
+  fun `reports lexical similarity without claiming semantic understanding`() {
+    assertTrue(engine.computeLexicalSimilarity("اشتراك", "اشتراكات") >= 0.45)
+    assertTrue(engine.computeLexicalSimilarity("اشتراك", "اشترك") >= 0.45)
+    assertTrue(engine.computeLexicalSimilarity("شرح تقنية IPTV", "شرح تقنية IPTV") == 1.0)
+    assertTrue(engine.computeLexicalSimilarity("اشتراك", "طائرة") < 0.4)
+    assertTrue(engine.computeLexicalSimilarity("مدرسة", "مدرسه") < 1.0)
+  }
+
+  @Test
   fun `detects spaced letters symbol interleaving and tatweel obfuscation`() {
     val text = "احصل على ا ش ت ر ا ك أو ا.ش.ت.ر.ا.ك أو اشـتـراك الآن"
     val obf = engine.detectObfuscation(text)
@@ -50,12 +72,12 @@ class ArabicTextIntelligenceEngineTest {
     val forms = listOf("اشتراك", "إشتراك", "اشـتراك", "اشترك", "اشتراكات")
     for (i in forms.indices) {
       for (j in (i + 1) until forms.size) {
-        val sim = engine.computeSemanticSimilarity(forms[i], forms[j])
+        val sim = engine.computeLexicalSimilarity(forms[i], forms[j])
         assertTrue("Expected noticeable similarity between ${forms[i]} and ${forms[j]}, got $sim", sim >= 0.45)
         assertTrue("Variants ${forms[i]} and ${forms[j]} must not score 1.0", sim < 1.0)
       }
     }
-    assertFalse(engine.computeSemanticSimilarity("اشتراك", "طائرة") >= 0.4)
+    assertFalse(engine.computeLexicalSimilarity("اشتراك", "طائرة") >= 0.4)
   }
 
   @Test

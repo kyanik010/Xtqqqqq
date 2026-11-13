@@ -112,7 +112,7 @@ class ThreadQualityEngine(
           val idxA = nonBlankIndices[i]
           for (j in (i + 1) until nonBlankIndices.size) {
             val idxB = nonBlankIndices[j]
-            val sim = arabicEngine.computeSemanticSimilarity(tweets[idxA], tweets[idxB])
+            val sim = arabicEngine.computeLexicalSimilarity(tweets[idxA], tweets[idxB])
             if (sim in 0.56..0.779) {
               findings.add(
                 Finding(
