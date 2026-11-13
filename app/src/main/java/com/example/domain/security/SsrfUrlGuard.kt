@@ -14,6 +14,8 @@ object SystemDnsResolver : DnsResolver {
   override fun resolveAll(host: String): List<InetAddress> = InetAddress.getAllByName(host).toList()
 }
 
+class UnsafeDnsResolutionException(message: String, val code: String) : java.net.UnknownHostException(message)
+
 sealed class UrlSafetyCheckResult {
   data class Safe(val uri: URI, val resolvedAddresses: List<InetAddress>) : UrlSafetyCheckResult()
 
@@ -87,30 +89,52 @@ class SsrfUrlGuard(private val dnsResolver: DnsResolver = SystemDnsResolver) {
     if (syntaxCheck is UrlSafetyCheckResult.Unsafe) return syntaxCheck
     val uri = (syntaxCheck as UrlSafetyCheckResult.Safe).uri
     val host = uri.host.lowercase(Locale.ROOT).trimEnd('.')
+    return try {
+      UrlSafetyCheckResult.Safe(uri, resolveSafeAddresses(host))
+    } catch (e: UnsafeDnsResolutionException) {
+      UrlSafetyCheckResult.Unsafe(e.message ?: "تم حظر حل DNS غير آمن.", e.code)
+    } catch (_: Exception) {
+      UrlSafetyCheckResult.Unsafe("تعذر حل اسم النطاق (DNS) للرابط.", "DNS_RESOLUTION_FAILED")
+    }
+  }
 
-    // If host is already an IP literal (IPv4 or bracketed IPv6)
-    val strippedHost = host.removePrefix("[").removeSuffix("]")
+  /**
+   * Resolves and validates the exact addresses that OkHttp will use for its socket connection.
+   * The returned list is passed directly to OkHttp's Dns implementation, preventing a second,
+   * unchecked system DNS lookup between validation and connection (DNS rebinding).
+   */
+  fun resolveSafeAddresses(hostname: String): List<InetAddress> {
+    val host = hostname.lowercase(Locale.ROOT).trimEnd('.').removePrefix("[").removeSuffix("]")
+    if (host.isBlank() || host.length > 253 ||
+      host in BLOCKED_HOSTNAMES || BLOCKED_SUFFIXES.any { host.endsWith(it) }
+    ) {
+      throw UnsafeDnsResolutionException(
+        "النطاق يشير إلى مضيف محلي أو شبكة داخلية محظورة.",
+        "BLOCKED_INTERNAL_HOST",
+      )
+    }
+
     val addresses =
       try {
-        dnsResolver.resolveAll(strippedHost)
-      } catch (_: Exception) {
-        return UrlSafetyCheckResult.Unsafe("تعذر حل اسم النطاق (DNS) للرابط.", "DNS_RESOLUTION_FAILED")
+        dnsResolver.resolveAll(host)
+      } catch (e: Exception) {
+        throw UnsafeDnsResolutionException(
+          "تعذر حل اسم النطاق (DNS) للرابط.",
+          "DNS_RESOLUTION_FAILED",
+        )
       }
 
     if (addresses.isEmpty()) {
-      return UrlSafetyCheckResult.Unsafe("لم يُرجع فحص DNS أي عنوان للنطاق.", "EMPTY_DNS_RESULT")
+      throw UnsafeDnsResolutionException("لم يُرجع فحص DNS أي عنوان للنطاق.", "EMPTY_DNS_RESULT")
     }
 
-    for (addr in addresses) {
-      if (isBlockedAddress(addr)) {
-        return UrlSafetyCheckResult.Unsafe(
-          "تم حظر الاتصال لأن النطاق يشير إلى عنوان IP داخلي أو خاص (حماية SSRF).",
-          "SSRF_BLOCKED_IP",
-        )
-      }
+    if (addresses.any(::isBlockedAddress)) {
+      throw UnsafeDnsResolutionException(
+        "تم حظر الاتصال لأن النطاق يشير إلى عنوان IP داخلي أو خاص (حماية SSRF).",
+        "SSRF_BLOCKED_IP",
+      )
     }
-
-    return UrlSafetyCheckResult.Safe(uri, addresses)
+    return addresses
   }
 
   fun isIpLiteralHost(host: String): Boolean {
