@@ -30,3 +30,11 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
       - name: Build Debug APK
         run: gradle assembleDebug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThreadGuard-X-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
