@@ -1,0 +1,6 @@
+{
+  "name": "ThreadGuard X",
+  "description": "محلل التغريدات والثريدات باللغة العربية قبل النشر على منصة X — تحليل اللغة والسبام والروابط والسياسات وجودة الثريد ومؤشرات الظهور.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

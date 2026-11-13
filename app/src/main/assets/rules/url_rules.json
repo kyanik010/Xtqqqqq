@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "engine": "UrlIntelligenceEngine",
+  "ssrf_protection": {
+    "allowed_schemes": ["http", "https"],
+    "block_localhost_and_private_ips": true,
+    "block_link_local_metadata": true,
+    "block_ipv4_mapped_ipv6": true,
+    "pre_resolve_dns": true,
+    "revalidate_every_redirect_hop": true,
+    "max_redirects": 5,
+    "connect_timeout_ms": 3000,
+    "read_timeout_ms": 4000,
+    "max_response_bytes": 131072
+  },
+  "uninspected_default_status": "UNINSPECTED"
+}

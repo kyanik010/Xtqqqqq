@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "engine": "PolicyRiskEngine",
+  "require_multiword_or_corroboration": true,
+  "context_mitigation_enabled": true,
+  "categories": [
+    "THREATS_VIOLENCE",
+    "HARASSMENT_TARGETING",
+    "HATE_SPEECH",
+    "PROHIBITED_SEXUAL",
+    "FRAUD_SCAM",
+    "MANIPULATION_MISINFO",
+    "PROHIBITED_ILLICIT"
+  ],
+  "disclaimer": "Analytical estimate only; not an official X policy enforcement decision."
+}

@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "engine": "SpamDetectionEngine",
+  "near_duplicate_similarity_threshold": 0.78,
+  "intra_thread_info_overlap_range": [0.56, 0.779],
+  "max_cta_before_flag": 2,
+  "max_emojis_per_tweet": 6,
+  "technical_context_exemption_enabled": true,
+  "bot_labeling_from_single_text": false
+}

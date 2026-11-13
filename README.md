@@ -1,11 +1,43 @@
-<div align="center">
+# ThreadGuard X
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+أداة تحليل متخصصة لفحص التغريدات والثريدات العربية قبل نشرها على منصة X (Twitter)، مبنية كتطبيق Android أصلي بلغة **Kotlin** وواجهة **Jetpack Compose (Material 3 RTL)** ومحركات تحليل مستقلة تعمل محلياً بالكامل.
 
-  <h1>Built with AI Studio</h2>
+> **إقرار بيئة التنفيذ**: صُمّم هذا المشروع في بيئة Google AI Studio Android لبناء تطبيق Android محلي متكامل (APK) يعمل دون الحاجة لخادم خارجي أو حساب مستخدم. يعتمد في تصميمه المفاهيمي على دراسة الأنماط العامة المفتوحة المصدر دون نسخ خوارزميات X الداخلية أو الادعاء بمعرفتها.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## الوظائف الرئيسية
+- **محرر ثريدات عربي RTL كامل**: إضافة، حذف، تعديل، إعادة ترتيب، لصق ثريد جاهز مع تقسيم تلقائي، عداد أحرف قابل للتخصيص (280 / 1000 / 4000 / 25000)، وتنبيهات فورية قبل الفحص.
+- **6 محركات تحليل مستقلة ومترابطة**:
+  1. `ArabicTextIntelligenceEngine` (محرك اللغة العربية)
+  2. `SpamDetectionEngine` (محرك اكتشاف السبام السياقي)
+  3. `PolicyRiskEngine` (محرك تحليل سياسات المحتوى)
+  4. `UrlIntelligenceEngine` (محرك تحليل الروابط وحماية SSRF)
+  5. `ThreadQualityEngine` (محرك جودة الثريد والترابط)
+  6. `VisibilityRiskEngine` (محرك تقييم مؤشرات الظهور المحتملة)
+- **مجمع الأدلة والتقييم (`RiskEvidenceAggregator`)**: يمنع احتساب المؤشر نفسه مرتين بين المحركات، ويفصل بوضوح بين **مؤشر الخطورة (Risk Score)** و**درجة الثقة (Confidence Score)**.
+- **محرر التحسين الآمن (`RewriteSuggestionEngine`)**: يعرض مقارنة بين النص الأصلي والمقترح مع خيارات قبول أو رفض أو استعادة النص الأصلي، ولا يعدل أي نص تلقائياً.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## المتطلبات والتشغيل
+- **Android Gradle Plugin**: `9.1.1` / **Gradle**: `9.3.1` / **JDK**: `21` / **Kotlin**: `2.2.10`
+- **الحد الأدنى للنظام**: Android API 24 (`minSdk = 24`, `targetSdk = 36`)
+- تشغيل الاختبارات محلياً:
+  ```bash
+  gradle :app:testDebugUnitTest
+  ```
+- بناء حزمة التصحيح:
+  ```bash
+  gradle assembleDebug
+  ```
 
-</div>
+## حدود الدقة والتنبؤ
+- النتائج **تقديرات تحليلية إرشادية** مبنية على قواعد لغوية وأمنية، وليست قرارات رسمية من منصة X.
+- لا يدّعي ThreadGuard X معرفة خوارزمية X الداخلية ولا يضمن معدل الوصول أو الانتشار.
+- الروابط التي يتعذر فحصها أو عند تعطيل الفحص الشبكي تُعرض صراحةً كـ **`غير مفحوص`** ولا تُعتبر آمنة افتراضياً.
+
+## الخصوصية والأمان
+راجع التفاصيل في:
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/ENGINES.md`](docs/ENGINES.md)
+- [`docs/SCORING.md`](docs/SCORING.md)
+- [`docs/SECURITY.md`](docs/SECURITY.md)
+- [`docs/PRIVACY.md`](docs/PRIVACY.md)
+- [`docs/TESTING.md`](docs/TESTING.md)

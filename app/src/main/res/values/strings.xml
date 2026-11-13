@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">ThreadGuard X</string>
+    <string name="app_subtitle">فحص ذكي للتغريدات والثريدات العربية قبل النشر على منصة X</string>
+    <string name="start_analysis">بدء الفحص الشامل</string>
+    <string name="paste_thread">لصق ثريد جاهز</string>
+    <string name="add_tweet">إضافة تغريدة</string>
+    <string name="delete_tweet">حذف التغريدة</string>
+    <string name="move_up">تحريك للأعلى</string>
+    <string name="move_down">تحريك للأسفل</string>
+    <string name="copy_text">نسخ النص</string>
+    <string name="clear_text">مسح النص</string>
+    <string name="tweet_count_label">عدد التغريدات</string>
+    <string name="tab_editor">المحرر</string>
+    <string name="tab_results">التقرير</string>
+    <string name="tab_rewrite">التحسين</string>
+    <string name="tab_settings">الإعدادات</string>
+    <string name="disclaimer_banner">النتائج تقديرات تحليلية مستقلة وليست قرارات رسمية من منصة X، ولا تدّعي معرفة خوارزميتها الداخلية أو ضمان الوصول.</string>
+</resources>

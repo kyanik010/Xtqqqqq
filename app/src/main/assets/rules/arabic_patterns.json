@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "engine": "ArabicTextIntelligenceEngine",
+  "normalization": {
+    "strip_tashkeel": true,
+    "strip_tatweel": true,
+    "normalize_alef": true,
+    "normalize_teh_marbuta": true,
+    "normalize_alef_maksura": true,
+    "normalize_digits_to_ascii": true,
+    "preserve_original_text": true
+  },
+  "obfuscation_detectors": [
+    "SPACED_LETTERS",
+    "SYMBOL_INTERLEAVED",
+    "TATWEEL_OBFUSCATION",
+    "ZERO_WIDTH_OBFUSCATION",
+    "CHAR_VARIATION"
+  ],
+  "elongation_threshold": 3
+}

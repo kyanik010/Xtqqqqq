@@ -1,0 +1,21 @@
+name: ThreadGuard X Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run Unit, Security, Dataset & Robolectric UI Tests
+        run: gradle :app:testDebugUnitTest
+      - name: Build Debug APK
+        run: gradle assembleDebug
