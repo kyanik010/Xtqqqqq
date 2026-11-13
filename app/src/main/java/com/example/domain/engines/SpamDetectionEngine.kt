@@ -113,7 +113,7 @@ class SpamDetectionEngine(
         if (tweets[i].isBlank()) continue
         for (j in (i + 1) until tweets.size) {
           if (tweets[j].isBlank()) continue
-          val sim = arabicEngine.computeSemanticSimilarity(tweets[i], tweets[j])
+          val sim = arabicEngine.computeLexicalSimilarity(tweets[i], tweets[j])
           val exactNorm = analyses[i].normalizedText == analyses[j].normalizedText && analyses[i].normalizedText.length >= 12
           if (exactNorm || sim >= 0.78) {
             val isExact = exactNorm || sim >= 0.96
@@ -125,7 +125,7 @@ class SpamDetectionEngine(
                 category = "تكرار التغريدات",
                 titleAr = if (isExact) "تطابق شبه كامل بين التغريدة ${j + 1} والتغريدة ${i + 1}" else "تشابه نصي مرتفع بين التغريدة ${j + 1} والتغريدة ${i + 1}",
                 explanationAr =
-                  "التغريدة رقم ${j + 1} شديدة التشابه مع التغريدة رقم ${i + 1} (نسبة التشابه الهيكلية ${(sim * 100).toInt()}%)، مما يرفع مؤشرات التكرار داخل الثريد.",
+                  "التغريدة رقم ${j + 1} شديدة التشابه مع التغريدة رقم ${i + 1} (نسبة التشابه النصي ${(sim * 100).toInt()}%)، مما يرفع مؤشرات التكرار داخل الثريد.",
                 suggestionAr = "ادمج الفكرة أو أعد صياغة التغريدة رقم ${j + 1} لتقديم معلومة جديدة ومستقلة.",
                 severity = if (isExact) RiskLevel.HIGH else RiskLevel.MEDIUM,
                 confidence = if (isExact) 0.95 else 0.84,
