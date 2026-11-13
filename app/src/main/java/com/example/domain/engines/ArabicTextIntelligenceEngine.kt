@@ -143,9 +143,8 @@ class ArabicTextIntelligenceEngine {
         ch in '\u200B'..'\u200F' || ch in '\u202A'..'\u202E' || ch == '\uFEFF' -> continue
         ch == 'أ' || ch == 'إ' || ch == 'آ' || ch == 'ٱ' -> sb.append('ا')
         ch == 'ى' -> sb.append('ي')
-        ch == 'ة' -> sb.append('ه')
-        ch == 'ؤ' -> sb.append('و')
-        ch == 'ئ' -> sb.append('ي')
+        // Preserve morphologically meaningful Arabic letters. Ta Marbuta (ة), Hamza-on-Waw
+        // (ؤ), and Hamza-on-Ya (ئ) are not interchangeable with ه/و/ي.
         ch == '\u06A9' -> sb.append('ك')
         ch == '\u06CC' || ch == '\u06D2' -> sb.append('ي')
         ch == '\u06C1' -> sb.append('ه')
@@ -431,39 +430,84 @@ class ArabicTextIntelligenceEngine {
   }
 
   /**
-   * Computes semantic/lexical similarity in [0.0, 1.0] combining:
-   * - Soft-stemmed + Arabic morphological skeleton Jaccard similarity (60%)
-   * - Character 3-gram cosine similarity on normalized text (40%)
-   * Note: Variant forms like "اشتراك" vs "اشتراكات" vs "اشترك" score high without falsely returning 1.0.
+   * Computes lexical/structural similarity, NOT semantic meaning similarity.
+   *
+   * Uses conservative normalization, one-to-one token matching, a bounded Arabic
+   * morphology hint, edit similarity, and character n-gram overlap. It can identify
+   * near-duplicates and inflectional variants, but it cannot infer that unrelated wording
+   * expresses the same idea. A trained sentence-embedding model is required for that.
    */
-  fun computeSemanticSimilarity(textA: String, textB: String): Double {
+  fun computeLexicalSimilarity(textA: String, textB: String): Double {
     val normA = normalize(URL_REGEX.replace(textA, " "))
     val normB = normalize(URL_REGEX.replace(textB, " "))
     if (normA.isBlank() || normB.isBlank()) return 0.0
-    if (textA.trim() == textB.trim()) return 1.0
+    if (normA == normB) return 1.0
 
-    val stemsA = tokenize(normA).map { softStemArabic(it) }.filter { it.length >= 2 }.toSet()
-    val stemsB = tokenize(normB).map { softStemArabic(it) }.filter { it.length >= 2 }.toSet()
-    val stemJaccard =
-      if (stemsA.isEmpty() && stemsB.isEmpty()) 0.0
-      else stemsA.intersect(stemsB).size.toDouble() / stemsA.union(stemsB).size.toDouble()
+    val tokensA = tokenize(normA).map(::softStemArabic).filter { it.length >= 3 }
+    val tokensB = tokenize(normB).map(::softStemArabic).filter { it.length >= 3 }
+    if (tokensA.isEmpty() || tokensB.isEmpty()) return 0.0
 
-    val skelsA = tokenize(normA).map { arabicMorphSkeleton(it) }.filter { it.length >= 2 }.toSet()
-    val skelsB = tokenize(normB).map { arabicMorphSkeleton(it) }.filter { it.length >= 2 }.toSet()
-    val skelJaccard =
-      if (skelsA.isEmpty() && skelsB.isEmpty()) 0.0
-      else skelsA.intersect(skelsB).size.toDouble() / skelsA.union(skelsB).size.toDouble()
-
-    val tokenScore = maxOf(stemJaccard, 0.85 * skelJaccard)
+    val unmatched = tokensB.toMutableList()
+    var matchedScore = 0.0
+    for (tokenA in tokensA) {
+      if (unmatched.isEmpty()) break
+      val best = unmatched.mapIndexed { index, tokenB ->
+        index to tokenSimilarity(tokenA, tokenB)
+      }.maxByOrNull { it.second } ?: break
+      if (best.second >= 0.62) {
+        matchedScore += best.second
+        unmatched.removeAt(best.first)
+      }
+    }
+    val tokenCoverage = (2.0 * matchedScore) / (tokensA.size + tokensB.size).coerceAtLeast(1)
 
     val gramsA = charNGrams(normA, 3)
     val gramsB = charNGrams(normB, 3)
     val ngramCosine = cosineSimilarity(gramsA, gramsB)
 
-    val rawScore = 0.60 * tokenScore + 0.40 * ngramCosine
-    // Reserve 1.0 strictly for exact character-for-character equality after whitespace trim
-    return if (textA.trim() != textB.trim() && rawScore > 0.98) 0.97 else rawScore.coerceIn(0.0, 1.0)
+    // Token overlap dominates; character overlap is only supporting evidence.
+    return (0.80 * tokenCoverage + 0.20 * ngramCosine).coerceIn(0.0, 1.0)
   }
+
+  private fun tokenSimilarity(tokenA: String, tokenB: String): Double {
+    if (tokenA == tokenB) return 1.0
+
+    val skeletonA = arabicMorphSkeleton(tokenA)
+    val skeletonB = arabicMorphSkeleton(tokenB)
+    if (skeletonA.length >= 3 && skeletonA == skeletonB) return 0.88
+
+    val maxLength = maxOf(tokenA.length, tokenB.length).coerceAtLeast(1)
+    val editSimilarity = 1.0 - levenshteinDistance(tokenA, tokenB).toDouble() / maxLength
+    if (editSimilarity < 0.62) return 0.0
+    return editSimilarity
+  }
+
+  private fun levenshteinDistance(a: String, b: String): Int {
+    if (a.isEmpty()) return b.length
+    if (b.isEmpty()) return a.length
+    var previous = IntArray(b.length + 1) { it }
+    for (i in 1..a.length) {
+      val current = IntArray(b.length + 1)
+      current[0] = i
+      for (j in 1..b.length) {
+        current[j] = minOf(
+          previous[j] + 1,
+          current[j - 1] + 1,
+          previous[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1,
+        )
+      }
+      previous = current
+    }
+    return previous[b.length]
+  }
+
+  /**
+   * Backward-compatible alias. This method has never used a semantic model;
+   * callers should migrate to computeLexicalSimilarity().
+   */
+  @Deprecated("This is lexical similarity, not semantic similarity. Use computeLexicalSimilarity().")
+  fun computeSemanticSimilarity(textA: String, textB: String): Double =
+    computeLexicalSimilarity(textA, textB)
 
   private fun charNGrams(text: String, n: Int): Map<String, Int> {
     val compact = text.replace(Regex("\\s+"), " ").trim()
