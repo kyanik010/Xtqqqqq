@@ -441,7 +441,7 @@ class ArabicTextIntelligenceEngine {
     val normA = normalize(URL_REGEX.replace(textA, " "))
     val normB = normalize(URL_REGEX.replace(textB, " "))
     if (normA.isBlank() || normB.isBlank()) return 0.0
-    if (normA == normB) return 1.0
+    if (normA == normB) return if (textA == textB) 1.0 else 0.98
 
     val tokensA = tokenize(normA).map(::softStemArabic).filter { it.length >= 3 }
     val tokensB = tokenize(normB).map(::softStemArabic).filter { it.length >= 3 }
